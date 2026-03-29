@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>受理届出名称別 集計一覧</title>
+    <style>
+        /* シックで清潔感のあるデザイン */
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f4f7f6;
+            --border-color: #dcdde1;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            border-left: 5px solid var(--accent-color);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+        }
+
+        .control-panel {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            min-width: 150px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: #fff;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: #f2f4f7;
+            font-weight: bold;
+        }
+
+        /* 縦軸（届出名称）は左寄せ */
+        td:first-child, th:first-child {
+            text-align: left;
+            background-color: #fdfdfd;
+            min-width: 250px;
+        }
+
+        tr:hover td {
+            background-color: #f1f7ff;
+        }
+
+        .num-cell {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: 500;
+        }
+
+        .empty-cell {
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>受理届出名称別医療機関種別別算定医療機関数一覧表</h2>
+
+    <div class="control-panel">
+        <label for="prefSelect">都道府県選択:</label>
+        <select id="prefSelect">
+            </select>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="resultTable">
+            <thead>
+                <tr id="headerRow">
+                    <th>受理届出名称</th>
+                    </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+/**
+ * グローバル変数でデータを保持
+ */
+let rawData = [];
+
+// 表示対象とする医療機関種別の定義
+const targetTypes = [
+    "1:特定機能病院",
+    "2:地域医療支援病院",
+    "3:病院",
+    "4:診療所"
+];
+
+/**
+ * 初期化処理: JSONファイルを読み込んでテーブルを構築
+ */
+async function init() {
+    try {
+        // shise.json からデータを取得
+        const response = await fetch('shise.json');
+        if (!response.ok) {
+            throw new Error('JSONファイルの読み込みに失敗しました。');
+        }
+        rawData = await response.json();
+
+        const prefSelect = document.getElementById('prefSelect');
+        
+        // ユニークな都道府県リストを作成
+        const prefs = [...new Set(rawData.map(item => item.都道府県名))];
+        
+        prefs.forEach(pref => {
+            const option = document.createElement('option');
+            option.value = pref;
+            option.textContent = pref;
+            prefSelect.appendChild(option);
+        });
+
+        // ヘッダー列（医療機関種別）の生成
+        const headerRow = document.getElementById('headerRow');
+        targetTypes.forEach(type => {
+            const th = document.createElement('th');
+            th.textContent = type;
+            headerRow.appendChild(th);
+        });
+
+        // 選択変更時のイベント登録
+        prefSelect.addEventListener('change', renderTable);
+        
+        // 初回描画
+        renderTable();
+    } catch (error) {
+        console.error('エラー:', error);
+        alert('データの読み込み中にエラーが発生しました。ブラウザのコンソールを確認してください。');
+    }
+}
+
+/**
+ * テーブルの描画
+ */
+function renderTable() {
+    const selectedPref = document.getElementById('prefSelect').value;
+    const tableBody = document.getElementById('tableBody');
+    tableBody.innerHTML = '';
+
+    if (!selectedPref) return;
+
+    // 選択された都道府県でフィルタリング
+    const filteredData = rawData.filter(item => item.都道府県名 === selectedPref);
+
+    // 受理届出名称をキーとしたマッピングを作成
+    // { "届出名": { "種別": 数値 } }
+    const pivotData = {};
+    const rowNames = new Set();
+
+    filteredData.forEach(item => {
+        const rowName = item.受理届出名称;
+        const typeName = item.医療機関種別;
+        const count = item.算定医療機関数;
+
+        if (!pivotData[rowName]) {
+            pivotData[rowName] = {};
+        }
+        pivotData[rowName][typeName] = count;
+        rowNames.add(rowName);
+    });
+
+    // 行（届出名称）ごとにループしてテーブルを作成
+    Array.from(rowNames).sort().forEach(rowName => {
+        const tr = document.createElement('tr');
+        
+        // 1列目：届出名称
+        const nameTd = document.createElement('td');
+        nameTd.textContent = rowName;
+        tr.appendChild(nameTd);
+
+        // 2列目以降：各医療機関種別の数値
+        targetTypes.forEach(type => {
+            const valTd = document.createElement('td');
+            valTd.className = 'num-cell';
+            const val = pivotData[rowName][type];
+            
+            if (val !== undefined) {
+                valTd.textContent = val.toLocaleString();
+            } else {
+                valTd.textContent = '-'; // 該当なし
+                valTd.classList.add('empty-cell');
+            }
+            tr.appendChild(valTd);
+        });
+
+        tableBody.appendChild(tr);
+    });
+}
+
+// 実行
+window.onload = init;
+</script>
+
+</body>
+</html>
