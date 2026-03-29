@@ -11,6 +11,7 @@
             --accent-color: #3498db;
             --bg-color: #f4f7f6;
             --border-color: #dcdde1;
+            --text-muted: #7f8c8d;
         }
 
         body {
@@ -43,10 +44,14 @@
             background: #f8f9fa;
             border-radius: 5px;
             border: 1px solid var(--border-color);
+        }
+
+        .input-row {
             display: flex;
-            flex-wrap: wrap; /* モバイル対応 */
+            flex-wrap: wrap;
             align-items: center;
             gap: 20px;
+            margin-bottom: 8px;
         }
 
         .control-group {
@@ -75,6 +80,14 @@
             min-width: 300px;
         }
 
+        /* 案内メッセージのスタイル */
+        .info-msg {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: 0;
+            padding-left: 5px;
+        }
+
         .table-wrapper {
             overflow-x: auto;
         }
@@ -98,7 +111,6 @@
             font-weight: bold;
         }
 
-        /* 縦軸（届出名称）は左寄せ */
         td:first-child, th:first-child {
             text-align: left;
             background-color: #fdfdfd;
@@ -122,19 +134,21 @@
 <body>
 
 <div class="container">
-    <h2>施設基準医療機関種類別届出状況（2026/3/1)・</h2>
+    <h2>施設基準 医療機関種類別届出状況（2026/3/1)</h2>
 
     <div class="control-panel">
-        <div class="control-group">
-            <label for="prefSelect">都道府県選択:</label>
-            <select id="prefSelect">
-                </select>
+        <div class="input-row">
+            <div class="control-group">
+                <label for="prefSelect">都道府県選択:</label>
+                <select id="prefSelect"></select>
+            </div>
+            
+            <div class="control-group">
+                <label for="searchInput">届出名称検索:</label>
+                <input type="text" id="searchInput" autocomplete="off" placeholder="名称の一部を入力（例：外来）">
+            </div>
         </div>
-        
-        <div class="control-group">
-            <label for="searchInput">届出名称検索:</label>
-            <input type="text" id="searchInput" placeholder="名称の一部を入力（例：外来）">
-        </div>
+        <p class="info-msg">※ブラウザによりパスワードと表示されても、検索に支障はありません。</p>
     </div>
 
     <div class="table-wrapper">
@@ -142,10 +156,9 @@
             <thead>
                 <tr id="headerRow">
                     <th>届出名称</th>
-                    </tr>
+                </tr>
             </thead>
-            <tbody id="tableBody">
-                </tbody>
+            <tbody id="tableBody"></tbody>
         </table>
     </div>
 </div>
@@ -156,7 +169,6 @@
  */
 let rawData = [];
 
-// 表示対象とする医療機関種別の定義
 const targetTypes = [
     "1:特定機能病院",
     "2:地域医療支援病院",
@@ -165,11 +177,10 @@ const targetTypes = [
 ];
 
 /**
- * 初期化処理: JSONファイルを読み込んでテーブルを構築
+ * 初期化処理
  */
 async function init() {
     try {
-        // shise.json からデータを取得
         const response = await fetch('shise.json');
         if (!response.ok) {
             throw new Error('JSONファイルの読み込みに失敗しました。');
@@ -179,7 +190,6 @@ async function init() {
         const prefSelect = document.getElementById('prefSelect');
         const searchInput = document.getElementById('searchInput');
         
-        // ユニークな都道府県リストを作成
         const prefs = [...new Set(rawData.map(item => item.都道府県名))];
         
         prefs.forEach(pref => {
@@ -189,7 +199,6 @@ async function init() {
             prefSelect.appendChild(option);
         });
 
-        // ヘッダー列（医療機関種別）の生成
         const headerRow = document.getElementById('headerRow');
         targetTypes.forEach(type => {
             const th = document.createElement('th');
@@ -197,15 +206,13 @@ async function init() {
             headerRow.appendChild(th);
         });
 
-        // 選択変更・検索入力時のイベント登録
         prefSelect.addEventListener('change', renderTable);
-        searchInput.addEventListener('input', renderTable); // 入力のたびに実行
+        searchInput.addEventListener('input', renderTable);
         
-        // 初回描画
         renderTable();
     } catch (error) {
         console.error('エラー:', error);
-        alert('データの読み込み中にエラーが発生しました。ブラウザのコンソールを確認してください。');
+        alert('データの読み込み中にエラーが発生しました。');
     }
 }
 
@@ -220,11 +227,8 @@ function renderTable() {
 
     if (!selectedPref) return;
 
-    // 1. 選択された都道府県でフィルタリング
     const filteredByPref = rawData.filter(item => item.都道府県名 === selectedPref);
 
-    // 2. 受理届出名称をキーとしたマッピングを作成
-    // { "届出名": { "種別": 数値 } }
     const pivotData = {};
     const rowNames = new Set();
 
@@ -233,7 +237,6 @@ function renderTable() {
         const typeName = item.医療機関種別;
         const count = item.算定医療機関数;
 
-        // 検索クエリがある場合、届出名称に含まれているかチェック
         if (searchQuery && !rowName.includes(searchQuery)) {
             return;
         }
@@ -245,16 +248,13 @@ function renderTable() {
         rowNames.add(rowName);
     });
 
-    // 3. 行（届出名称）ごとにループしてテーブルを作成
     Array.from(rowNames).sort().forEach(rowName => {
         const tr = document.createElement('tr');
         
-        // 1列目：届出名称
         const nameTd = document.createElement('td');
         nameTd.textContent = rowName;
         tr.appendChild(nameTd);
 
-        // 2列目以降：各医療機関種別の数値
         targetTypes.forEach(type => {
             const valTd = document.createElement('td');
             valTd.className = 'num-cell';
@@ -263,7 +263,7 @@ function renderTable() {
             if (val !== undefined) {
                 valTd.textContent = val.toLocaleString();
             } else {
-                valTd.textContent = '-'; // 該当なし
+                valTd.textContent = '-';
                 valTd.classList.add('empty-cell');
             }
             tr.appendChild(valTd);
@@ -273,7 +273,6 @@ function renderTable() {
     });
 }
 
-// 実行
 window.onload = init;
 </script>
 
