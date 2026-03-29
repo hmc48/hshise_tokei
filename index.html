@@ -169,11 +169,12 @@
  */
 let rawData = [];
 
+// 修正後
 const targetTypes = [
-    "1:特定機能病院",
-    "2:地域医療支援病院",
-    "3:病院",
-    "4:診療所"
+    { label: "特定機能病院", key: "1:特定機能病院" },
+    { label: "地域医療支援病院", key: "2:地域支援病院" }, // 表示は「医療」あり、検索は「医療」なし
+    { label: "病院", key: "3:病院" },
+    { label: "診療所", key: "4:診療所" }
 ];
 
 /**
@@ -202,7 +203,7 @@ async function init() {
         const headerRow = document.getElementById('headerRow');
         targetTypes.forEach(type => {
             const th = document.createElement('th');
-            th.textContent = type;
+            th.textContent = typeObj.label;
             headerRow.appendChild(th);
         });
 
@@ -255,11 +256,14 @@ function renderTable() {
         nameTd.textContent = rowName;
         tr.appendChild(nameTd);
 
-        targetTypes.forEach(type => {
+// 修正後
+        targetTypes.forEach(typeObj => {
             const valTd = document.createElement('td');
             valTd.className = 'num-cell';
-            const val = pivotData[rowName][type];
-            
+    
+            // pivotData から探すときは typeObj.key を使う
+            const val = pivotData[rowName][typeObj.key];
+    
             if (val !== undefined) {
                 valTd.textContent = val.toLocaleString();
             } else {
