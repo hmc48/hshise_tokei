@@ -80,7 +80,6 @@
             min-width: 300px;
         }
 
-        /* 案内メッセージのスタイル */
         .info-msg {
             font-size: 0.8rem;
             color: var(--text-muted);
@@ -165,34 +164,34 @@
 
 <script>
 /**
- * グローバル変数でデータを保持
+ * グローバル変数
  */
 let rawData = [];
 
-// 修正後
+// 表示用の名前 (label) と 実際のデータのキー (key) を定義
 const targetTypes = [
-    { label: "特定機能病院", key: "1:特定機能病院" },
-    { label: "地域医療支援病院", key: "2:地域支援病院" }, // 表示は「医療」あり、検索は「医療」なし
-    { label: "病院", key: "3:病院" },
-    { label: "診療所", key: "4:診療所" }
+    { label: "1:特定機能病院", key: "1:特定機能病院" },
+    { label: "2:地域医療支援病院", key: "2:地域支援病院" }, 
+    { label: "3:病院", key: "3:病院" },
+    { label: "4:診療所", key: "4:診療所" }
 ];
 
 /**
- * 初期化処理
+ * 初期化
  */
 async function init() {
     try {
         const response = await fetch('shise.json');
         if (!response.ok) {
-            throw new Error('JSONファイルの読み込みに失敗しました。');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         rawData = await response.json();
 
         const prefSelect = document.getElementById('prefSelect');
         const searchInput = document.getElementById('searchInput');
         
+        // 都道府県リスト作成
         const prefs = [...new Set(rawData.map(item => item.都道府県名))];
-        
         prefs.forEach(pref => {
             const option = document.createElement('option');
             option.value = pref;
@@ -200,8 +199,9 @@ async function init() {
             prefSelect.appendChild(option);
         });
 
+        // ヘッダー生成 (labelを使用)
         const headerRow = document.getElementById('headerRow');
-        targetTypes.forEach(type => {
+        targetTypes.forEach(typeObj => {
             const th = document.createElement('th');
             th.textContent = typeObj.label;
             headerRow.appendChild(th);
@@ -212,13 +212,13 @@ async function init() {
         
         renderTable();
     } catch (error) {
-        console.error('エラー:', error);
-        alert('データの読み込み中にエラーが発生しました。');
+        console.error('Fetch error:', error);
+        alert('データの読み込み中にエラーが発生しました。詳細はコンソールを確認してください。');
     }
 }
 
 /**
- * テーブルの描画
+ * テーブル描画
  */
 function renderTable() {
     const selectedPref = document.getElementById('prefSelect').value;
@@ -238,13 +238,9 @@ function renderTable() {
         const typeName = item.医療機関種別;
         const count = item.算定医療機関数;
 
-        if (searchQuery && !rowName.includes(searchQuery)) {
-            return;
-        }
+        if (searchQuery && !rowName.includes(searchQuery)) return;
 
-        if (!pivotData[rowName]) {
-            pivotData[rowName] = {};
-        }
+        if (!pivotData[rowName]) pivotData[rowName] = {};
         pivotData[rowName][typeName] = count;
         rowNames.add(rowName);
     });
@@ -256,14 +252,12 @@ function renderTable() {
         nameTd.textContent = rowName;
         tr.appendChild(nameTd);
 
-// 修正後
+        // データ抽出 (keyを使用)
         targetTypes.forEach(typeObj => {
             const valTd = document.createElement('td');
             valTd.className = 'num-cell';
-    
-            // pivotData から探すときは typeObj.key を使う
             const val = pivotData[rowName][typeObj.key];
-    
+            
             if (val !== undefined) {
                 valTd.textContent = val.toLocaleString();
             } else {
