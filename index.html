@@ -147,7 +147,7 @@
                 <input type="text" id="searchInput" autocomplete="off" placeholder="名称の一部を入力（例：外来）">
             </div>
         </div>
-        <p class="info-msg">※ブラウザによりパスワードと表示されても、検索に支障はありません。</p>
+        <p class="info-msg">※各医療機関のデータは厚生局のページでご確認ください。</p>
     </div>
 
     <div class="table-wrapper">
@@ -234,10 +234,15 @@ function renderTable() {
     const rowNames = new Set();
 
     filteredByPref.forEach(item => {
-        const rowName = item.受理届出名称;
+        // 【修正】受理届出名称を取得し、前後の空白を除去。存在しない場合は空文字とする
+        const rowName = item.受理届出名称 ? item.受理届出名称.trim() : "";
         const typeName = item.医療機関種別;
         const count = item.算定医療機関数;
 
+        // 【修正】届出名称が空（空白含む）の場合はスキップ
+        if (!rowName) return;
+
+        // 検索クエリがある場合、合致しない名称はスキップ
         if (searchQuery && !rowName.includes(searchQuery)) return;
 
         if (!pivotData[rowName]) pivotData[rowName] = {};
