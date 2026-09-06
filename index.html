@@ -133,7 +133,7 @@
 <body>
 
 <div class="container">
-    <h2>施設基準の届出状況（医科) (2026/3)</h2>
+    <h2>施設基準の届出状況（医科) (2026/8)</h2>
 
     <div class="control-panel">
         <div class="input-row">
@@ -181,7 +181,7 @@ const targetTypes = [
  */
 async function init() {
     try {
-        const response = await fetch('shise.json');
+        const response = await fetch('shise202608.json');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
